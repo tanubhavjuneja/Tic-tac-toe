@@ -29,6 +29,8 @@ class RandomAI:
         return random.choice([(r, c) for r in range(5) for c in range(5) if board[r][c] == 'b'])
     def check_winner(self, board, player):
         return any(all(board[r][c] == player for r, c in condition) for condition in self.win_conditions)
+import random
+
 class SmartAI:
     def __init__(self):
         self.win_conditions = [
@@ -40,24 +42,58 @@ class SmartAI:
         ] + [
             [(r, c), (r + 1, c - 1), (r + 2, c - 2)] for r in range(3) for c in range(2, 5)
         ]
+
     def play_game(self, board):
-        ai = 'X'
-        opponent = 'O'
+        best_move = None
+        best_score = float('-inf')
+
         for move in [(r, c) for r in range(5) for c in range(5) if board[r][c] == 'b']:
-            board[move[0]][move[1]] = ai
-            if self.check_winner(board, ai):
-                board[move[0]][move[1]] = 'b'
-                return move
+            board[move[0]][move[1]] = 'X'
+            score = self.minimax(board, 0, False, float('-inf'), float('inf'))
             board[move[0]][move[1]] = 'b'
-        for move in [(r, c) for r in range(5) for c in range(5) if board[r][c] == 'b']:
-            board[move[0]][move[1]] = opponent
-            if self.check_winner(board, opponent):
+
+            if score > best_score:
+                best_score = score
+                best_move = move
+
+        return best_move if best_move else random.choice([(r, c) for r in range(5) for c in range(5) if board[r][c] == 'b'])
+
+    def minimax(self, board, depth, is_maximizing, alpha, beta):
+        if self.check_winner(board, 'X'):
+            return 10 - depth  # AI wins
+        if self.check_winner(board, 'O'):
+            return depth - 10  # Opponent wins
+        if all(cell != 'b' for row in board for cell in row):
+            return 0  # Draw
+
+        if is_maximizing:
+            max_eval = float('-inf')
+            for move in [(r, c) for r in range(5) for c in range(5) if board[r][c] == 'b']:
+                print("yes")
+                board[move[0]][move[1]] = 'X'
+                eval = self.minimax(board, depth + 1, False, alpha, beta)
                 board[move[0]][move[1]] = 'b'
-                return move
-            board[move[0]][move[1]] = 'b'
-        return random.choice([(r, c) for r in range(5) for c in range(5) if board[r][c] == 'b'])
+                max_eval = max(max_eval, eval)
+                alpha = max(alpha, eval)
+                if beta <= alpha:
+                    break
+            return max_eval
+        else:
+            min_eval = float('inf')
+            for move in [(r, c) for r in range(5) for c in range(5) if board[r][c] == 'b']:
+                print("yes")
+                board[move[0]][move[1]] = 'O'
+                eval = self.minimax(board, depth + 1, True, alpha, beta)
+                board[move[0]][move[1]] = 'b'
+                min_eval = min(min_eval, eval)
+                beta = min(beta, eval)
+                if beta <= alpha:
+                    break
+            return min_eval
+
     def check_winner(self, board, player):
         return any(all(board[r][c] == player for r, c in condition) for condition in self.win_conditions)
+
 class TicTacToeGUI:
     def __init__(self, root, ai1, ai2):
         self.root = root
