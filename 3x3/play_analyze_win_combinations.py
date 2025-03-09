@@ -63,33 +63,28 @@ class TicTacToeGUI:
     def __init__(self, root, ai):
         self.root = root
         self.ai = ai
-        self.difficulty = "medium"
         self.board = [['b'] * 3 for _ in range(3)]
         self.buttons = {}
         self.root.geometry("670x800+650+100")
-        self.root.configure(fg_color=("#1a1a1a"))
-        self.board_frame = ctk.CTkFrame(self.root, width=650, height=650)
+        self.root.configure(fg_color=("white"))
+        self.root.overrideredirect(True)
+        self.board_frame = ctk.CTkFrame(self.root, width=650, height=650,fg_color="white")
         self.board_frame.pack(pady=10, padx=10)
         self.create_board() 
-        self.control_frame = ctk.CTkFrame(self.root, width=650, height=150)
+        self.control_frame = ctk.CTkFrame(self.root, width=650, height=150,fg_color="white")
         self.control_frame.pack(pady=10, padx=10)
         self.create_controls()
     def create_board(self):
         for r in range(3):
             for c in range(3):
-                btn = ctk.CTkButton(self.board_frame, text="", font=("Arial", 100), width=200, height=200,
-                                    command=lambda r=r, c=c: self.player_move(r, c))
+                btn = ctk.CTkButton(self.board_frame, text="", font=("Arial", 160), width=200, height=200,
+                                    command=lambda r=r, c=c: self.player_move(r, c),text_color="white",fg_color="#3bc8f4" if (r+c)%2==0 else "#2a88c8", hover=False,text_color_disabled="white")
                 btn.grid(row=r, column=c, padx=5, pady=5)
                 self.buttons[(r, c)] = btn
     def create_controls(self):
-        self.status_label = ctk.CTkLabel(self.control_frame, text="Select Difficulty", font=("Arial", 50))
+        self.status_label = ctk.CTkLabel(self.control_frame, text="Your Turn", font=("Arial", 50),text_color="#2a88c8")
         self.status_label.pack(pady=5)
-        difficulty_frame = ctk.CTkFrame(self.control_frame)
-        difficulty_frame.pack(pady=10)
-        for level in ["Easy", "Medium", "Hard"]:
-            ctk.CTkButton(difficulty_frame, text=level, width=200, height=50,
-                          command=lambda lvl=level.lower(): self.reset_game(lvl),
-                          font=("Arial", 25)).pack(side="left", padx=5)
+        self.reset_button =ctk.CTkButton(self.control_frame, text="Reset", width=400, height=50,command=self.reset_game, hover=False,font=("Arial", 25),fg_color="#3bc8f4",text_color="white").pack(side="left", padx=5)
     def player_move(self, r, c):
         if self.board[r][c] == 'b' and not self.check_game_over():
             self.disable_buttons()
@@ -103,7 +98,7 @@ class TicTacToeGUI:
                 self.root.after(2000, self.ai_move)
     def ai_move(self):
         if not self.check_game_over():
-            move = self.ai.decide_move(self.board, self.difficulty)
+            move = self.ai.decide_move(self.board)
             if move is not None:
                 r, c = move
                 self.board[r][c] = 'x'
@@ -135,17 +130,10 @@ class TicTacToeGUI:
             self.status_label.configure(text="It's a Draw!")
             return True
         return False
-    def reset_game(self, difficulty):
-        self.difficulty = difficulty
+    def reset_game(self):
         self.board = [['b'] * 3 for _ in range(3)]
         for (r, c), btn in self.buttons.items():
             btn.configure(text="", state="normal")
-        if self.difficulty == "hard":
-            self.disable_buttons()
-            self.status_label.configure(text="AI's Turn")
-            self.root.after(2000, self.ai_move)
-        else:
-            self.status_label.configure(text="Your Turn")
 if __name__ == "__main__":
     ctk.set_appearance_mode("dark")
     root = ctk.CTk()

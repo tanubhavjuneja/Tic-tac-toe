@@ -117,13 +117,13 @@ class TicTacToeGUI:
         for r in range(3):
             for c in range(3):
                 btn = ctk.CTkButton(self.board_frame, text="", font=("Arial", 160), width=200, height=200,
-                                    command=lambda r=r, c=c: self.player_move(r, c),text_color="white",fg_color="#3bc8f4" if (r+c)%2==0 else "#2a88c8",text_color_disabled="white")
+                                    command=lambda r=r, c=c: self.player_move(r, c),text_color="white",fg_color="#3bc8f4" if (r+c)%2==0 else "#2a88c8",text_color_disabled="white", hover=False)
                 btn.grid(row=r, column=c, padx=5, pady=5)
                 self.buttons[(r, c)] = btn
     def create_controls(self):
         self.status_label = ctk.CTkLabel(self.control_frame, text="Your Turn", font=("Arial", 50),text_color="#2a88c8")
         self.status_label.pack(pady=5)
-        self.reset_button =ctk.CTkButton(self.control_frame, text="Reset", width=400, height=50,command=self.reset_game,font=("Arial", 25),fg_color="#3bc8f4",text_color="white").pack(side="left", padx=5)
+        self.reset_button =ctk.CTkButton(self.control_frame, text="Reset", width=400, height=50,command=self.reset_game,font=("Arial", 25),fg_color="#3bc8f4", hover=False,text_color="white").pack(side="left", padx=5)
     def player_move(self, r, c):
         if self.board[r][c] == 'b' and not self.check_game_over():
             self.disable_buttons()
