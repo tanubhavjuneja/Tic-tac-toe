@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Tic-Tac-Toe vs AI</title>
+<style>
+  :root{
+    --bg:#0f1720; --panel:#0b1220; --accent:#2a88c8; --muted:#9fbfdc;
+  }
+  body{margin:0;font-family:Inter,system-ui,Arial;background:linear-gradient(180deg,#071021 0%, #0f1720 100%);color:#e6f7ff;display:flex;align-items:center;justify-content:center;height:100vh;}
+  .wrap{width:920px;max-width:95%;padding:28px;border-radius:16px;background:linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01));box-shadow:0 8px 30px rgba(2,6,23,0.6);text-align:center;}
+  h1{margin:0 0 10px;font-size:28px;color:var(--accent)}
+  .top{display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .symbol-chooser{display:flex;gap:12px;align-items:center}
+  .sym{background:#fff;color:var(--accent);border:none;padding:12px 20px;border-radius:12px;font-weight:700;cursor:pointer}
+  .sym:active{transform:scale(.98)}
+  .board{margin:22px auto;display:grid;grid-template-columns:repeat(3,120px);gap:12px;justify-content:center}
+  button.cell{width:120px;height:120px;border-radius:12px;border:none;background:#fff;color:var(--accent);font-size:52px;font-weight:700;cursor:pointer;transition:transform .08s}
+  button.cell:hover:not(:disabled){transform:scale(1.03)}
+  button.cell:disabled{cursor:default;opacity:0.95}
+  .info{margin-top:16px;font-size:16px;color:var(--muted)}
+  .controls{margin-top:18px;display:flex;gap:12px;justify-content:center}
+  .btn{background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
+  .taunt{margin-top:12px;color:#ffdede;font-style:italic}
+  .scores{font-weight:700;color:#cdeeff}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Tic-Tac-Toe vs AI</h1>
+
+    <div class="top">
+      <div class="symbol-chooser" id="symbolChooser">
+        <div style="font-weight:700;color:#cdeeff;margin-right:8px">Choose symbol:</div>
+        <button class="sym" onclick="choose('x')">X</button>
+        <button class="sym" onclick="choose('o')">O</button>
+      </div>
+
+      <div class="scores" id="scores">You: 0 | AI: 0 | Ties: 0</div>
+    </div>
+
+    <div id="board" class="board" aria-label="tic tac toe board"></div>
+
+    <div class="info" id="status">Pick X or O to start. You always go first.</div>
+
+    <div class="controls">
+      <button class="btn" onclick="resetGame()">Reset</button>
+    </div>
+  </div>
+
+<script>
+let player = null;
+let ai = null;
+let gameOver = false;
+
+// Build empty board UI (9 buttons). We keep the DOM elements so we can enable/disable quickly.
+const boardEl = document.getElementById('board');
+for(let i=0;i<9;i++){
+  const btn = document.createElement('button');
+  btn.className = 'cell';
+  btn.dataset.index = i;
+  btn.onclick = () => playerMove(i);
+  boardEl.appendChild(btn);
+}
+
+const statusEl = document.getElementById('status');
+const scoresEl = document.getElementById('scores');
+
+async function choose(sym){
+  // sym: 'x' or 'o'
+  player = sym;
+  ai = (sym === 'x') ? 'o' : 'x';
+  document.getElementById('symbolChooser').classList.add('hidden');
+  statusEl.textContent = "Your move first.";
+  await fetch('/set_symbol', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({symbol: sym})});
+  await refresh();
+}
+
+function setBoardFromState(board){
+  const buttons = boardEl.querySelectorAll('button.cell');
+  for(let i=0;i<9;i++){
+    const r = Math.floor(i/3), c = i%3;
+    const val = board[r][c];
+    buttons[i].textContent = (val === 'b' ? '' : val.toUpperCase());
+    // disable if not blank or game over
+    buttons[i].disabled = (val !== 'b') || gameOver;
+  }
+}
+
+async function refresh(){
+  const res = await fetch('/state');
+  const data = await res.json();
+  gameOver = data.game_over;
+  setBoardFromState(data.board);
+  statusEl.textContent = data.message || "";
+  scoresEl.textContent = `You: ${data.scores.human} | AI: ${data.scores.ai} | Ties: ${data.scores.ties}`;
+  // if no symbol chosen on server (player null), show chooser again
+  if(!player){
+    document.getElementById('symbolChooser').classList.remove('hidden');
+    statusEl.textContent = "Pick X or O to start.";
+  } else {
+    document.getElementById('symbolChooser').classList.add('hidden');
+  }
+}
+
+async function playerMove(index){
+  if(!player) { alert('Choose X or O first'); return; }
+  if(gameOver) return;
+  // disable board immediately
+  disableBoard(true);
+  // send move as row/col
+  const r = Math.floor(index/3), c = index%3;
+  const btns = boardEl.querySelectorAll('button.cell');
+    btns[index].textContent = player.toUpperCase();
+    btns[index].disabled = true;
+
+    // send move to server but don't wait for immediate board update
+    const res = await fetch('/move', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({row: r, col: c})
+    });
+
+    // add a 1-second "thinking" delay before showing AI move
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
+    const data = await res.json();
+
+  if(data.error){
+    // re-enable according to server board
+    await refresh();
+    return;
+  }
+  
+  // update board and status
+  gameOver = data.game_over;
+  setBoardFromState(data.board);
+  statusEl.textContent = data.message || "";
+
+  // update scores display
+  scoresEl.textContent = `You: ${data.scores.human} | AI: ${data.scores.ai} | Ties: ${data.scores.ties}`;
+
+  // if game not over, re-enable empty cells
+  if(!gameOver){
+    // small delay to simulate AI thinking already occurred on server side; still re-enable now
+    disableBoard(false);
+  } else {
+    disableBoard(true);
+    // show chooser for a new game
+    document.getElementById('symbolChooser').classList.remove('hidden');
+  }
+}
+
+function disableBoard(state){
+  boardEl.querySelectorAll('button.cell').forEach(b=>{
+    // keep chosen texts visible; disabling only affects click/hover and does not change color
+    if(state) b.disabled = true;
+    else if(b.textContent === '') b.disabled = false;
+  });
+}
+
+async function resetGame(){
+  await fetch('/reset', {method:'POST'});
+  player = null;
+  ai = null;
+  gameOver = false;
+  document.getElementById('symbolChooser').classList.remove('hidden');
+  await refresh();
+}
+
+// initial state load
+refresh();
+</script>
+</body>
+</html>
