@@ -1,10 +1,10 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, HTMLResponse
-from fastapi.staticfiles import StaticFiles
 import random
 import uvicorn
 from pathlib import Path
-import asyncio
+import requests
+import threading
 class TicTacToeAI:
     def __init__(self):
         self.win_conditions = [
@@ -270,9 +270,15 @@ async def move(req: Request):
 async def reset():
     reset_board()
     return JSONResponse(game_state_response())
-
+def keep_server_awake():
+    def ping():
+        try:
+            requests.get("https://rank-list-backend.onrender.com/")
+        except Exception as e:
+            print(f"Ping failed: {e}")
+        threading.Timer(60, ping).start()
+    ping()
 # Run directly
 if __name__ == "__main__":
-    # If you prefer to run with uvicorn from command line, you can also use:
-    # uvicorn web:app --reload
-    uvicorn.run("web:app", host="127.0.0.1", port=8000, reload=True)
+    keep_server_awake()
+    uvicorn.run("web:app", host="0.0.0.0", port=80, reload=True)
