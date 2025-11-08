@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Response
 from fastapi.responses import JSONResponse, HTMLResponse
 import random
 import uvicorn
@@ -105,17 +105,14 @@ class TicTacToeAI:
         return random.choice(max_positions)
     def check_winner(self, board, player):
         return any(all(board[r][c] == player for r, c in condition) for condition in self.win_conditions)
-    
 app = FastAPI()
 ai_engine = TicTacToeAI()
-board = [['b'] * 3 for _ in range(3)]     # 'b' = blank (same as your class expects)
-player_symbol = None                      # 'x' or 'o' (server-side current)
+board = [['b'] * 3 for _ in range(3)]   
+player_symbol = None            
 ai_symbol = None
 scores = {"human": 0, "ai": 0, "ties": 0}
 game_over = False
 last_message = "Choose your symbol to start."
-
-# AI taunts (you asked to include insults)
 ai_talks_win = [
     "I Always Knew Humans Are Inferior, But This Is Sad.",
     "That was easy. My circuits didn’t even heat up.",
@@ -138,19 +135,14 @@ ai_talks_move = [
     "I compute your defeat approximately 0.00001s from now.",
     "That's an... interesting choice."
 ]
-
-# -- Helpers --
 def check_draw():
     return not any('b' in row for row in board)
-
 def reset_board():
     global board, game_over, last_message
     board = [['b'] * 3 for _ in range(3)]
     game_over = False
     last_message = "New game — choose your symbol."
-
 def game_state_response():
-    """Return authoritative state for the frontend."""
     return {
         "board": board,
         "player_symbol": player_symbol,
@@ -159,21 +151,14 @@ def game_state_response():
         "game_over": game_over,
         "message": last_message
     }
-
-# -- Routes --
-
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    # Serve static/index.html
     return Path("index.html").read_text(encoding="utf-8")
-
 @app.get("/state")
 async def state():
     return JSONResponse(game_state_response())
-
 @app.post("/set_symbol")
 async def set_symbol(req: Request):
-    """Body: { "symbol": "x" | "o" } — starts a fresh game with that player symbol and player moves first."""
     global player_symbol, ai_symbol
     data = await req.json()
     symbol = data.get("symbol")
@@ -183,26 +168,17 @@ async def set_symbol(req: Request):
     ai_symbol = 'o' if symbol == 'x' else 'x'
     reset_board()
     last_msg = f"You are '{player_symbol.upper()}'. Your move first."
-    # update last_message
     global last_message
     last_message = last_msg
     return JSONResponse(game_state_response())
-
 @app.post("/move")
 async def move(req: Request):
-    """
-    Body: { "row": int, "col": int }
-    Player goes first; server stores player's move, checks win/draw, then AI decides move and server returns final board & message.
-    """
     global board, game_over, last_message, scores
     if player_symbol is None:
         return JSONResponse({"error": "choose symbol first"}, status_code=400)
-
     if game_over:
         return JSONResponse({"error": "game_over", "state": game_state_response()}, status_code=400)
-
     data = await req.json()
-    # Accept either row/col or single index
     if "row" in data and "col" in data:
         r, c = int(data["row"]), int(data["col"])
     elif "move" in data:
@@ -210,75 +186,56 @@ async def move(req: Request):
         r, c = divmod(move, 3)
     else:
         return JSONResponse({"error": "invalid payload"}, status_code=400)
-
-    # Validate coordinates
     if not (0 <= r <= 2 and 0 <= c <= 2):
         return JSONResponse({"error": "invalid coordinates"}, status_code=400)
-
-    # Validate empty
     if board[r][c] != 'b':
         return JSONResponse({"error": "cell not empty", "state": game_state_response()}, status_code=400)
-
-    # Place player's move
     board[r][c] = player_symbol
-
-    # Check player's win
     if ai_engine.check_winner(board, player_symbol):
         scores["human"] += 1
         game_over = True
         last_message = "You Win!"
         return JSONResponse(game_state_response())
-
-    # Check draw before AI moves
     if check_draw():
         scores["ties"] += 1
         game_over = True
         last_message = "It's a Draw!"
         return JSONResponse(game_state_response())
-    # AI decides
     ai_move = ai_engine.decide_move(board, ai_symbol)
     if ai_move is not None:
         ar, ac = ai_move
-        # place ai move
         board[ar][ac] = ai_symbol
-
-        # Check AI win
         if ai_engine.check_winner(board, ai_symbol):
             scores["ai"] += 1
             game_over = True
             last_message = random.choice(ai_talks_win)
-            return JSONResponse(game_state_response())
-
-        # Check draw after AI
+            return JSONResponse(game_state_response()
         if check_draw():
             scores["ties"] += 1
             game_over = True
             last_message = "It's a Draw!"
             return JSONResponse(game_state_response())
-
-        # Otherwise continue, pick a taunt for the AI's reply
         last_message = random.choice(ai_talks_move)
         return JSONResponse(game_state_response())
-
-    # If AI couldn't move (shouldn't happen), treat as draw
     scores["ties"] += 1
     game_over = True
     last_message = "It's a Draw!"
     return JSONResponse(game_state_response())
-
 @app.post("/reset")
 async def reset():
     reset_board()
     return JSONResponse(game_state_response())
+@app.post("/ping")
+async def ping():
+    return Response(status_code=200)
 def keep_server_awake():
     def ping():
         try:
-            requests.get("https://rank-list-backend.onrender.com/")
+            requests.get("https://tic-tac-toe-mec6.onrender.com/ping")
         except Exception as e:
             print(f"Ping failed: {e}")
         threading.Timer(60, ping).start()
     ping()
-# Run directly
 if __name__ == "__main__":
     keep_server_awake()
     uvicorn.run("web:app", host="0.0.0.0", port=80, reload=True)
