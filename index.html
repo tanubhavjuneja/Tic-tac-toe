@@ -30,32 +30,24 @@
 <body>
   <div class="wrap">
     <h1>Tic-Tac-Toe vs AI</h1>
-
     <div class="top">
       <div class="symbol-chooser" id="symbolChooser">
         <div style="font-weight:700;color:#cdeeff;margin-right:8px">Choose symbol:</div>
         <button class="sym" onclick="choose('x')">X</button>
         <button class="sym" onclick="choose('o')">O</button>
       </div>
-
       <div class="scores" id="scores">You: 0 | AI: 0 | Ties: 0</div>
     </div>
-
     <div id="board" class="board" aria-label="tic tac toe board"></div>
-
     <div class="info" id="status">Pick X or O to start. You always go first.</div>
-
     <div class="controls">
       <button class="btn" onclick="resetGame()">Reset</button>
     </div>
   </div>
-
 <script>
 let player = null;
 let ai = null;
 let gameOver = false;
-
-// Build empty board UI (9 buttons). We keep the DOM elements so we can enable/disable quickly.
 const boardEl = document.getElementById('board');
 for(let i=0;i<9;i++){
   const btn = document.createElement('button');
@@ -64,12 +56,9 @@ for(let i=0;i<9;i++){
   btn.onclick = () => playerMove(i);
   boardEl.appendChild(btn);
 }
-
 const statusEl = document.getElementById('status');
 const scoresEl = document.getElementById('scores');
-
 async function choose(sym){
-  // sym: 'x' or 'o'
   player = sym;
   ai = (sym === 'x') ? 'o' : 'x';
   document.getElementById('symbolChooser').classList.add('hidden');
@@ -77,18 +66,15 @@ async function choose(sym){
   await fetch('/set_symbol', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({symbol: sym})});
   await refresh();
 }
-
 function setBoardFromState(board){
   const buttons = boardEl.querySelectorAll('button.cell');
   for(let i=0;i<9;i++){
     const r = Math.floor(i/3), c = i%3;
     const val = board[r][c];
     buttons[i].textContent = (val === 'b' ? '' : val.toUpperCase());
-    // disable if not blank or game over
     buttons[i].disabled = (val !== 'b') || gameOver;
   }
 }
-
 async function refresh(){
   const res = await fetch('/state');
   const data = await res.json();
@@ -96,7 +82,6 @@ async function refresh(){
   setBoardFromState(data.board);
   statusEl.textContent = data.message || "";
   scoresEl.textContent = `You: ${data.scores.human} | AI: ${data.scores.ai} | Ties: ${data.scores.ties}`;
-  // if no symbol chosen on server (player null), show chooser again
   if(!player){
     document.getElementById('symbolChooser').classList.remove('hidden');
     statusEl.textContent = "Pick X or O to start.";
@@ -104,63 +89,42 @@ async function refresh(){
     document.getElementById('symbolChooser').classList.add('hidden');
   }
 }
-
 async function playerMove(index){
   if(!player) { alert('Choose X or O first'); return; }
   if(gameOver) return;
-  // disable board immediately
   disableBoard(true);
-  // send move as row/col
   const r = Math.floor(index/3), c = index%3;
   const btns = boardEl.querySelectorAll('button.cell');
     btns[index].textContent = player.toUpperCase();
     btns[index].disabled = true;
-
-    // send move to server but don't wait for immediate board update
     const res = await fetch('/move', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
     body: JSON.stringify({row: r, col: c})
     });
-
-    // add a 1-second "thinking" delay before showing AI move
     await new Promise(resolve => setTimeout(resolve, 1000));
-
     const data = await res.json();
-
   if(data.error){
-    // re-enable according to server board
     await refresh();
     return;
   }
-  
-  // update board and status
   gameOver = data.game_over;
   setBoardFromState(data.board);
   statusEl.textContent = data.message || "";
-
-  // update scores display
   scoresEl.textContent = `You: ${data.scores.human} | AI: ${data.scores.ai} | Ties: ${data.scores.ties}`;
-
-  // if game not over, re-enable empty cells
   if(!gameOver){
-    // small delay to simulate AI thinking already occurred on server side; still re-enable now
     disableBoard(false);
   } else {
     disableBoard(true);
-    // show chooser for a new game
     document.getElementById('symbolChooser').classList.remove('hidden');
   }
 }
-
 function disableBoard(state){
   boardEl.querySelectorAll('button.cell').forEach(b=>{
-    // keep chosen texts visible; disabling only affects click/hover and does not change color
     if(state) b.disabled = true;
     else if(b.textContent === '') b.disabled = false;
   });
 }
-
 async function resetGame(){
   await fetch('/reset', {method:'POST'});
   player = null;
@@ -169,8 +133,6 @@ async function resetGame(){
   document.getElementById('symbolChooser').classList.remove('hidden');
   await refresh();
 }
-
-// initial state load
 refresh();
 </script>
 </body>
