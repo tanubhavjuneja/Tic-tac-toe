@@ -209,7 +209,7 @@ async def move(req: Request):
             scores["ai"] += 1
             game_over = True
             last_message = random.choice(ai_talks_win)
-            return JSONResponse(game_state_response()
+            return JSONResponse(game_state_response())
         if check_draw():
             scores["ties"] += 1
             game_over = True
