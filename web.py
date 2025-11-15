@@ -237,5 +237,4 @@ def keep_server_awake():
         threading.Timer(60, ping).start()
     ping()
 if __name__ == "__main__":
-    keep_server_awake()
     uvicorn.run("web:app", host="0.0.0.0", port=80, reload=True)
