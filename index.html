@@ -20,11 +20,15 @@
   button.cell:hover:not(:disabled){transform:scale(1.03)}
   button.cell:disabled{cursor:default;opacity:0.95}
   .info{margin-top:16px;font-size:16px;color:var(--muted)}
-  .controls{margin-top:18px;display:flex;gap:12px;justify-content:center}
+  .controls{margin-top:18px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
   .btn{background:var(--accent);color:#fff;padding:10px 16px;border-radius:10px;border:none;cursor:pointer;font-weight:700}
   .taunt{margin-top:12px;color:#ffdede;font-style:italic}
   .scores{font-weight:700;color:#cdeeff}
   .hidden{display:none}
+  .difficulty-selector{display:flex;gap:8px;align-items:center}
+  .diff-btn{background:transparent;color:var(--muted);border:2px solid var(--muted);padding:8px 14px;border-radius:8px;font-weight:600;cursor:pointer;font-size:13px;transition:all .2s}
+  .diff-btn:hover{border-color:var(--accent);color:var(--accent)}
+  .diff-btn.active{background:var(--accent);border-color:var(--accent);color:#fff}
 </style>
 </head>
 <body>
@@ -37,6 +41,14 @@
         <button class="sym" onclick="choose('o')">O</button>
       </div>
       <div class="scores" id="scores">You: 0 | AI: 0 | Ties: 0</div>
+    </div>
+    <div style="margin-top:16px;display:flex;justify-content:center;align-items:center;gap:10px">
+      <span style="font-weight:600;color:var(--muted);font-size:14px">Difficulty:</span>
+      <div class="difficulty-selector" id="difficultySelector">
+        <button class="diff-btn" data-diff="easy" onclick="setDifficulty('easy')">Easy</button>
+        <button class="diff-btn" data-diff="medium" onclick="setDifficulty('medium')">Medium</button>
+        <button class="diff-btn" data-diff="hard" onclick="setDifficulty('hard')">Hard</button>
+      </div>
     </div>
     <div id="board" class="board" aria-label="tic tac toe board"></div>
     <div class="info" id="status">Pick X or O to start. You always go first.</div>
@@ -66,6 +78,19 @@ async function choose(sym){
   await fetch('/set_symbol', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({symbol: sym})});
   await refresh();
 }
+async function setDifficulty(diff){
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.diff-btn[data-diff="${diff}"]`).classList.add('active');
+  await fetch('/set_difficulty', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({difficulty: diff})});
+  player = null;
+  ai = null;
+  gameOver = false;
+  await refresh();
+}
+function updateDifficultyButtons(diff){
+  document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.diff-btn[data-diff="${diff}"]`).classList.add('active');
+}
 function setBoardFromState(board){
   const buttons = boardEl.querySelectorAll('button.cell');
   for(let i=0;i<9;i++){
@@ -82,6 +107,9 @@ async function refresh(){
   setBoardFromState(data.board);
   statusEl.textContent = data.message || "";
   scoresEl.textContent = `You: ${data.scores.human} | AI: ${data.scores.ai} | Ties: ${data.scores.ties}`;
+  if(data.difficulty){
+    updateDifficultyButtons(data.difficulty);
+  }
   if(!player){
     document.getElementById('symbolChooser').classList.remove('hidden');
     statusEl.textContent = "Pick X or O to start.";
@@ -133,6 +161,7 @@ async function resetGame(){
   document.getElementById('symbolChooser').classList.remove('hidden');
   await refresh();
 }
+updateDifficultyButtons('hard');
 refresh();
 </script>
 </body>
